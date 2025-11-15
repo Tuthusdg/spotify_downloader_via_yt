@@ -42,24 +42,43 @@ def download_music(urls_file):
     os.makedirs(download_dir, exist_ok=True)
     print(f"--- Preparation : Telechargement vers : '{download_dir}' ---")
 
+    # Arguments pour le post-traitement des metadonnees
+    # On nettoie le titre avant d'appliquer la regle Artiste - Titre
+    # Retire les tags courants (case-insensitive) et les crochets/parentheses inutiles
+    postprocessor_args = [
+        # Nettoyage des tags entre parentheses ou crochets (Official Video, Lyrics, etc.)
+        r'-removetags', r'\s*(\[|\(|\{)(?:official|live|lyrics|audio|video|clip|music video|album|single|ft\..*|feat\..*|prod\..*|remix|full|avec|clip officiel|rencontre).*(\]|\)|\})?$',
+        r'-replacetitle', r'\s*(\[|\(|\{)(?:official|live|lyrics|audio|video|clip|music video|album|single|ft\..*|feat\..*|prod\..*|remix|full|avec|clip officiel|rencontre).*(\]|\)|\})?$', r'',
+        r'-replacetitle', r'\s*\[.*\]$', r'',
+        r'-replacetitle', r'\s*\(.*\)$', r'',
+        
+        # S'assurer que le premier tiret est entoure d'espaces pour la separation (optionnel, mais aide)
+    ]
+
+
     ydl_opts = {
         'format': 'bestaudio/best', 'extract_audio': True, 'audio_format': 'mp3',
         'outtmpl': os.path.join(download_dir, '%(title)s.%(ext)s'), 
         'verbose': False, 'noprogress': True,
         'ignoreerrors': True, 
         'postprocessors': [
-            # NOUVEAU: ParseMetadata utilise la regex pour separer Artiste et Titre
+            
+            # ETAPE 1: Separation Artiste/Titre sur le titre NETTOYÉ
             {
-                'key': 'ParseMetadata',
-                'patterns': {
-                    'title': r'(?P<artist>.+?) - (?P<title>.+)',
-                }
+                'key': 'MetadataFromTitle',
+                'titleformat': r'%(artist)s - %(title)s',
+                # 'fail_on_error': False -- ARGUMENT RETIRE POUR COMPATIBILITE MAXIMALE
             },
-            # Met a jour les metadonnees FFmpeg (facultatif mais recommande)
+            
+            # ETAPE 2: Finalisation et Conversion
             {'key': 'FFmpegMetadata', 'add_metadata': True},
-            # Extraction de l'audio
             {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'},
         ],
+        
+        # Ajout des arguments de post-processeur directement aux options yt-dlp
+        'postprocessor_args': {
+            'ModifyMetadata': postprocessor_args
+        }
     }
 
     with open(urls_file, 'r', encoding='utf-8') as f:
