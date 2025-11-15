@@ -47,7 +47,19 @@ def download_music(urls_file):
         'outtmpl': os.path.join(download_dir, '%(title)s.%(ext)s'), 
         'verbose': False, 'noprogress': True,
         'ignoreerrors': True, 
-        'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
+        'postprocessors': [
+            # NOUVEAU: ParseMetadata utilise la regex pour separer Artiste et Titre
+            {
+                'key': 'ParseMetadata',
+                'patterns': {
+                    'title': r'(?P<artist>.+?) - (?P<title>.+)',
+                }
+            },
+            # Met a jour les metadonnees FFmpeg (facultatif mais recommande)
+            {'key': 'FFmpegMetadata', 'add_metadata': True},
+            # Extraction de l'audio
+            {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'},
+        ],
     }
 
     with open(urls_file, 'r', encoding='utf-8') as f:
