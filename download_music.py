@@ -8,9 +8,9 @@ def get_default_music_folder():
     if sys.platform == 'win32':
         return os.path.join(os.environ['USERPROFILE'], 'Music')
     elif sys.platform == 'darwin':
-        return os.path.join(os.path.expanduser('~'), 'Music')
+        return os.path.expanduser('~/Music')
     elif sys.platform.startswith('linux'):
-        return os.path.join(os.path.expanduser('~'), 'Music')
+        return os.path.expanduser('~/Music')
     else:
         return 'Musique_Telechargee'
 
@@ -18,68 +18,73 @@ def check_ffmpeg():
     try:
         subprocess.run(['ffmpeg', '-version'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         return True
-    except (FileNotFoundError, subprocess.CalledProcessError):
+    except:
         return False
 
 def download_music(urls_file):
 
     if not check_ffmpeg():
-        print("\n---------------------------------------------------------------------------------")
-        print("ERREUR : FFmpeg n'est pas installe. La conversion en MP3 est impossible.")
-        print("---------------------------------------------------------------------------------")
+        print("❌ FFmpeg n'est pas installé.")
         return
 
     if not os.path.exists(urls_file):
-        print(f"ERREUR : Le fichier d'URLs '{urls_file}' est introuvable pour le telechargement.")
+        print(f"❌ Le fichier '{urls_file}' est introuvable.")
         return
     
     base_name = os.path.basename(urls_file)
     playlist_folder_name = base_name.replace('_urls.txt', '')
-
-    default_music_path = get_default_music_folder()
-    download_dir = os.path.join(default_music_path, playlist_folder_name) 
-        
+    download_dir = os.path.join(get_default_music_folder(), playlist_folder_name)
     os.makedirs(download_dir, exist_ok=True)
-    print(f"--- Preparation : Telechargement vers : '{download_dir}' ---")
+
+    print(f"📥 Téléchargement vers : {download_dir}")
 
     ydl_opts = {
         'format': 'bestaudio/best',
-        'extract_audio': True,
-        'audio_format': 'mp3',
-        'outtmpl': os.path.join(download_dir, '%(title)s.%(ext)s'),
+
+        # ✅ Nom du fichier propre
+        'outtmpl': os.path.join(download_dir, '%(artist)s - %(title)s.%(ext)s'),
+
+        # ✅ Téléchargement + intégration cover
+        'writethumbnail': True,
+        'embedthumbnail': True,
+
+        # ✅ Empêche les pauses de 5s
+        'sleep_interval': 0,
+        'max_sleep_interval': 0,
+
+        # ✅ Empêche les pauses liées au throttle
+        'throttledratelimit': 0,
+
         'ignoreerrors': True,
         'noprogress': True,
 
-        # ✅ Télécharge la vignette
-        'writethumbnail': True,
-
         'postprocessors': [
-            # ✅ 1. Extraction audio & conversion MP3
+            # ✅ Étape 1 : Conversion en MP3
             {
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192'
             },
 
-            # ✅ 2. Intégration de la cover dans le MP3
+            # ✅ Étape 2 : Intégration de la cover
             {
                 'key': 'EmbedThumbnail'
             },
 
-            # ✅ 3. Séparation Artiste - Titre
+            # ✅ Étape 3 : Extraction métadonnées Artiste & Titre
             {
                 'key': 'MetadataFromTitle',
-                'titleformat': r'%(artist)s - %(title)s'
+                'titleformat': '%(artist)s - %(title)s'
             },
 
-            # ✅ 4. Ajout des métadonnées
+            # ✅ Étape 4 : Tags ID3 (dont Artiste)
             {
                 'key': 'FFmpegMetadata',
                 'add_metadata': True
             }
         ],
 
-        # ✅ Important pour que la cover soit compatible MP3
+        # ✅ Obligatoire pour Cover + ID3 propre
         'postprocessor_args': {
             'FFmpegMetadata': ['-id3v2_version', '3']
         }
@@ -89,22 +94,22 @@ def download_music(urls_file):
         urls = [line.strip() for line in f if line.strip()]
 
     if not urls:
-        print("Le fichier d'URLs est vide. Aucune musique a telecharger.")
+        print("❌ Aucun lien trouvé.")
         return
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            for url in tqdm(urls, desc="Telechargement des titres"):
+            for url in tqdm(urls, desc="Téléchargement"):
                 ydl.download([url])
 
     except Exception as e:
-        print(f"Une erreur inattendue est survenue: {e}")
+        print(f"⚠ Erreur : {e}")
         
-    print(f"\n✅ Téléchargement terminé ! Les fichiers sont dans : '{download_dir}'.")
+    print(f"\n✅ Terminé ! Fichiers enregistrés dans : {download_dir}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python download_music.py <nom_du_fichier_urls.txt>")
+        print("Usage: python download_music.py <fichier_urls.txt>")
         sys.exit(1)
         
     download_music(sys.argv[1])
