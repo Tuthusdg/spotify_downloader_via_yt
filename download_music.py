@@ -67,9 +67,11 @@ def download_music(urls_file):
             {
                 'key': 'MetadataFromTitle',
                 'titleformat': r'%(artist)s - %(title)s',
-                # 'fail_on_error': False -- ARGUMENT RETIRE POUR COMPATIBILITE MAXIMALE
             },
             
+            # NOUVEAU: Telecharge la vignette et l'integre au fichier
+            {'key': 'EmbedThumbnail'}, 
+
             # ETAPE 2: Finalisation et Conversion
             {'key': 'FFmpegMetadata', 'add_metadata': True},
             {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'},
